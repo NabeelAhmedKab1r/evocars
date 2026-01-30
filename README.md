@@ -32,6 +32,11 @@ An evolutionary AI racing simulator built in Python where autonomous agents lear
 
 ##  Running the Project
 
+## 🎮 Simulation Preview
+
+![Evolutionary AI Racer Simulation](assets/ai-racer-demo.png)
+
+
 ### Requirements
 - Python **3.11** (recommended)
 - Pygame
