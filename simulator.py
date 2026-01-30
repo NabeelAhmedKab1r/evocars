@@ -3,7 +3,7 @@
 import math
 import pygame
 from car import Car
-from config import DT, REPLAY_FPS, CAR_COLOR, SCREEN_WIDTH, SCREEN_HEIGHT
+from config import DT, REPLAY_FPS, SCREEN_WIDTH, SCREEN_HEIGHT
 
 # =========================
 # UI CONSTANTS
@@ -15,19 +15,19 @@ TOP_BAR_BG = (30, 30, 30)
 BOTTOM_BAR_BG = (235, 235, 235)
 
 BEST_CAR_COLOR = (0, 180, 0)
+TRAIL_COLOR = (0, 150, 0)
+
 TEXT_LIGHT = (240, 240, 240)
 TEXT_MUTED = (200, 200, 200)
 TEXT_ACCENT = (180, 255, 180)
+
+MAX_TRAIL_LENGTH = 180   # number of past positions to keep
 
 
 # ============================================================
 #                 FITNESS EVALUATION (NO UI)
 # ============================================================
 def simulate_genome(genome, track):
-    """
-    Run a single genome on a track (no drawing).
-    Returns (fitness, final_car_state).
-    """
     car = Car(track.start_pos[0], track.start_pos[1], track.start_angle)
     steps_alive = 0
 
@@ -38,7 +38,6 @@ def simulate_genome(genome, track):
         car.update(steer, throttle, track, DT)
         steps_alive += 1
 
-        # Allow quitting during long simulations
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
@@ -52,14 +51,13 @@ def simulate_genome(genome, track):
         target_x, target_y = track.checkpoints[cp_idx]
 
     dist = math.hypot(car.x - target_x, car.y - target_y)
-
-    # Fitness: checkpoints > distance > wasted moves
     fitness = cp_idx * 1000.0 - dist - 0.1 * (len(genome) - steps_alive)
+
     return fitness, car
 
 
 # ============================================================
-#                 BEST GENOME REPLAY (UI)
+#                 BEST GENOME REPLAY (WITH TRAIL)
 # ============================================================
 def replay_best(
     screen,
@@ -81,11 +79,14 @@ def replay_best(
     step_index = 0
     time_acc = 0.0
 
+    # -------- AGENT TRAIL --------
+    trail = []   # list of (x, y)
+
     while running:
         dt_real = clock.tick(REPLAY_FPS) / 1000.0
         time_acc += dt_real
 
-        # ---------------- EVENTS ----------------
+        # -------- EVENTS --------
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
@@ -96,55 +97,62 @@ def replay_best(
                     pygame.quit()
                     raise SystemExit
 
-                # TAB switches track (forwarded to main loop)
                 if event.key == pygame.K_TAB:
                     pygame.event.post(event)
                     running = False
                 else:
                     running = False
 
-        # ---------------- STEP GENOME ----------------
+        # -------- STEP GENOME --------
         while time_acc >= DT and step_index < len(best_genome) and car.alive:
             steer, throttle = best_genome[step_index]
             car.update(steer, throttle, track, DT)
             step_index += 1
             time_acc -= DT
 
-        # ---------------- DRAW ----------------
+            # Record trail
+            trail.append((car.x, car.y))
+            if len(trail) > MAX_TRAIL_LENGTH:
+                trail.pop(0)
+
+        # -------- DRAW --------
         screen.fill((245, 245, 245))
 
-        # ===== TOP BAR =====
+        # ---- TOP BAR ----
         pygame.draw.rect(
             screen,
             TOP_BAR_BG,
             pygame.Rect(0, 0, SCREEN_WIDTH, TOP_BAR_HEIGHT)
         )
 
-        gen_text = font_top.render(
-            f"Generation {generation}", True, TEXT_LIGHT
-        )
-        fit_text = font_top.render(
-            f"Best fitness: {best_fitness:.1f}", True, TEXT_ACCENT
-        )
-        move_text = font_top.render(
-            f"Moves: {genome_len}", True, TEXT_MUTED
-        )
+        gen_text = font_top.render(f"Generation {generation}", True, TEXT_LIGHT)
+        fit_text = font_top.render(f"Best fitness: {best_fitness:.1f}", True, TEXT_ACCENT)
+        move_text = font_top.render(f"Moves: {genome_len}", True, TEXT_MUTED)
 
         screen.blit(gen_text, (20, 18))
-        screen.blit(
-            fit_text,
-            (SCREEN_WIDTH // 2 - fit_text.get_width() // 2, 18)
-        )
-        screen.blit(
-            move_text,
-            (SCREEN_WIDTH - move_text.get_width() - 20, 18)
+        screen.blit(fit_text, (SCREEN_WIDTH // 2 - fit_text.get_width() // 2, 18))
+        screen.blit(move_text, (SCREEN_WIDTH - move_text.get_width() - 20, 18))
+
+        # ---- TRACK ----
+        track.draw(screen, active_checkpoint=car.checkpoint_index)
+
+        # ---- AGENT TRAIL ----
+        for i, (tx, ty) in enumerate(trail):
+            alpha = int(255 * (i / max(1, len(trail))))
+            s = pygame.Surface((8, 8), pygame.SRCALPHA)
+            s.fill((*TRAIL_COLOR, alpha))
+
+    # IMPORTANT: offset by top bar
+            screen.blit(
+            s,
+            (int(tx) - 4, int(ty) - 4 + TOP_BAR_HEIGHT)
         )
 
-        # ===== TRACK + BEST AGENT =====
-        track.draw(screen)
+
+        # ---- BEST AGENT ----
         car.draw(screen, BEST_CAR_COLOR)
 
-        # ===== BOTTOM BAR =====
+        # ---- BOTTOM BAR ----
         pygame.draw.rect(
             screen,
             BOTTOM_BAR_BG,
@@ -159,16 +167,14 @@ def replay_best(
         controls = "TAB = next track   •   ESC = quit   •   Any key = skip replay"
         surf = font_instr.render(controls, True, (60, 60, 60))
         surf_rect = surf.get_rect(
-            center=(
-                SCREEN_WIDTH // 2,
-                SCREEN_HEIGHT - BOTTOM_BAR_HEIGHT // 2
-            )
+            center=(SCREEN_WIDTH // 2,
+                    SCREEN_HEIGHT - BOTTOM_BAR_HEIGHT // 2)
         )
         screen.blit(surf, surf_rect)
 
         pygame.display.flip()
 
-        # ---------------- END REPLAY ----------------
+        # ---- END REPLAY ----
         if step_index >= len(best_genome) or not car.alive:
             pygame.time.delay(250)
             if auto_continue:

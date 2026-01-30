@@ -12,8 +12,8 @@ TOP_BAR_HEIGHT = 60
 BOTTOM_BAR_HEIGHT = 45
 
 # Track inset
-TRACK_MARGIN = 70       # distance from app border to track edges
-WALL_THICKNESS = 22     # thickness of track walls
+TRACK_MARGIN = 70
+WALL_THICKNESS = 22
 
 
 class Track:
@@ -24,18 +24,18 @@ class Track:
         self.walls = walls
         self.checkpoints = checkpoints
 
-    def draw(self, surface):
+    def draw(self, surface, active_checkpoint=None):
         game_y = TOP_BAR_HEIGHT
         game_height = SCREEN_HEIGHT - TOP_BAR_HEIGHT - BOTTOM_BAR_HEIGHT
 
-        # --- Gameplay background area ---
+        # --- Background ---
         pygame.draw.rect(
             surface,
             BACKGROUND_COLOR,
             pygame.Rect(0, game_y, SCREEN_WIDTH, game_height)
         )
 
-        # --- Inner driveable rectangle ---
+        # --- Driveable area ---
         pygame.draw.rect(
             surface,
             DRIVEABLE_COLOR,
@@ -47,85 +47,60 @@ class Track:
             )
         )
 
-        # --- Draw walls ---
+        # --- Walls ---
         for w in self.walls:
             pygame.draw.rect(surface, WALL_COLOR, w)
 
         # --- Checkpoints ---
         font = pygame.font.SysFont("Helvetica", 18, bold=True)
         for i, (cx, cy) in enumerate(self.checkpoints):
-            pygame.draw.circle(surface, CHECKPOINT_COLOR, (cx, cy), 8)
+            if active_checkpoint == i:
+                # Glow effect
+                pygame.draw.circle(surface, (120, 255, 120), (cx, cy), 14)
+                pygame.draw.circle(surface, (0, 200, 0), (cx, cy), 9)
+            else:
+                pygame.draw.circle(surface, CHECKPOINT_COLOR, (cx, cy), 8)
+
             label = font.render(str(i + 1), True, (0, 0, 0))
             rect = label.get_rect(center=(cx, cy - 20))
             surface.blit(label, rect)
 
-        # --- Start position marker ---
+        # --- Start marker ---
         pygame.draw.circle(surface, START_COLOR, self.start_pos, 7)
 
 
 # -------------------------------------------------------------
-#                      DEFAULT TRACK (RECTANGLE)
+#                      DEFAULT TRACK
 # -------------------------------------------------------------
 def default_track():
     walls = []
 
-    # Compute the area where the track exists
     play_top = TOP_BAR_HEIGHT
     play_bottom = SCREEN_HEIGHT - BOTTOM_BAR_HEIGHT
     play_height = play_bottom - play_top
 
-    # Track’s inner boundaries
     left = TRACK_MARGIN
     top = play_top + TRACK_MARGIN
     width = SCREEN_WIDTH - 2 * TRACK_MARGIN
     height = play_height - 2 * TRACK_MARGIN
 
-    # -------- WALLS --------
     def wall(x, y, w, h):
         walls.append(pygame.Rect(x, y, w, h))
 
-    # Top wall
     wall(left, top, width, WALL_THICKNESS)
-
-    # Bottom wall
     wall(left, top + height - WALL_THICKNESS, width, WALL_THICKNESS)
-
-    # Left wall
     wall(left, top, WALL_THICKNESS, height)
-
-    # Right wall
     wall(left + width - WALL_THICKNESS, top, WALL_THICKNESS, height)
 
-    # ---------------- CHECKPOINTS (INSIDE TRACK) ----------------
+    # ---- CHECKPOINTS INSIDE TRACK ----
     checkpoints = []
+    offset = WALL_THICKNESS + 25
 
-    offset = WALL_THICKNESS + 25  # safe distance inside wall
+    checkpoints.append((left + width // 2, top + offset))
+    checkpoints.append((left + width - offset, top + height // 2))
+    checkpoints.append((left + width // 2, top + height - offset))
+    checkpoints.append((left + offset, top + height // 2))
 
-    # Top checkpoint
-    checkpoints.append((
-        left + width // 2,
-        top + offset
-    ))
-
-    # Right checkpoint
-    checkpoints.append((
-        left + width - offset,
-        top + height // 2
-    ))
-
-    # Bottom checkpoint
-    checkpoints.append((
-        left + width // 2,
-        top + height - offset
-    ))
-
-    # Left checkpoint
-    checkpoints.append((
-        left + offset,
-        top + height // 2
-    ))
-
-    # ---------------- START POSITION ----------------
     start_pos = (left + 80, top + height // 2)
     start_angle = 0.0
 
@@ -138,9 +113,6 @@ def default_track():
     )
 
 
-# -------------------------------------------------------------
-#                     LOADER FOR JSON TRACKS
-# -------------------------------------------------------------
 def load_all_tracks(track_dir):
     if not os.path.isdir(track_dir):
         return [default_track()]
@@ -183,3 +155,5 @@ def load_all_tracks(track_dir):
             print(f"Error loading track {path}: {e}")
 
     return tracks or [default_track()]
+
+
