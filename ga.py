@@ -2,14 +2,7 @@
 
 import random
 from config import POP_SIZE, ELITE_COUNT, PARENT_POOL
-from genome import random_genome, mutate, crossover
-from simulator import simulate_genome
-
-
-def evaluate_population(population, track):
-    scored = [(simulate_genome(genome, track)[0], genome) for genome in population]
-    scored.sort(key=lambda x: x[0], reverse=True)
-    return scored
+from genome import mutate, crossover
 
 
 def next_generation(scored):

@@ -54,35 +54,6 @@ def nn_forward(genome, inputs):
 
 
 # ============================================================
-#  FITNESS EVALUATION  (headless)
-# ============================================================
-def simulate_genome(genome, track):
-    car = Car(track.start_pos[0], track.start_pos[1], track.start_angle)
-    steps_alive = 0
-
-    for _ in range(SIM_STEPS):
-        if not car.alive:
-            break
-        rays       = car.get_raycasts(track)
-        speed_norm = car.speed / MAX_SPEED
-        steer, throttle = nn_forward(genome, rays + [speed_norm])
-        car.update(steer, throttle, track, DT)
-        steps_alive += 1
-
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                raise SystemExit
-
-    cp_idx = car.checkpoint_index
-    tx, ty = (track.checkpoints[-1] if cp_idx >= len(track.checkpoints)
-               else track.checkpoints[cp_idx])
-    dist    = math.hypot(car.x - tx, car.y - ty)
-    fitness = cp_idx * 1000.0 - dist + steps_alive * 0.05
-    return fitness, car
-
-
-# ============================================================
 #  FULL POPULATION — LIVE SIMULATION + EVALUATION
 # ============================================================
 GHOST_COLOR      = (0, 55, 80)    # dim cyan for non-best alive cars
@@ -253,7 +224,6 @@ def simulate_population_visual(screen, clock, track, population, generation, bes
         _draw_key_hints(screen, font_xs)
 
         pygame.display.flip()
-        clock.tick(REPLAY_FPS)
 
         if alive_count == 0:
             pygame.time.delay(400)
@@ -265,139 +235,6 @@ def simulate_population_visual(screen, clock, track, population, generation, bes
         key=lambda x: x[0], reverse=True
     )
     return scored
-
-
-# ============================================================
-#  BEST GENOME REPLAY
-# ============================================================
-def replay_best(
-    screen, clock, track,
-    best_genome, generation, best_fitness,
-    best_history, auto_continue=True
-):
-    car = Car(track.start_pos[0], track.start_pos[1], track.start_angle)
-
-    font_lg  = pygame.font.SysFont("Helvetica", 20, bold=True)
-    font_sm  = pygame.font.SysFont("Helvetica", 13)
-    font_xs  = pygame.font.SysFont("Helvetica", 11)
-
-    # Pre-build trail surface once (reused, cleared each frame)
-    trail_surf = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
-
-    running    = True
-    step_index = 0
-    time_acc   = 0.0
-    trail      = []
-
-    while running:
-        dt_real   = clock.tick(REPLAY_FPS) / 1000.0
-        time_acc += dt_real
-
-        # ── EVENTS ──────────────────────────────────────────────
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                raise SystemExit
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE:
-                    pygame.quit()
-                    raise SystemExit
-                if event.key == pygame.K_TAB:
-                    pygame.event.post(event)
-                    running = False
-                else:
-                    running = False
-
-        # ── STEP ────────────────────────────────────────────────
-        while time_acc >= DT and step_index < SIM_STEPS and car.alive:
-            rays       = car.get_raycasts(track)
-            speed_norm = car.speed / MAX_SPEED
-            steer, throttle = nn_forward(best_genome, rays + [speed_norm])
-            car.update(steer, throttle, track, DT)
-            step_index += 1
-            time_acc   -= DT
-            trail.append((car.x, car.y))
-            if len(trail) > MAX_TRAIL_LENGTH:
-                trail.pop(0)
-
-        # ── DRAW: background fill ────────────────────────────────
-        screen.fill((7, 8, 18))
-
-        # ── TOP BAR ─────────────────────────────────────────────
-        pygame.draw.rect(screen, TOP_BAR_BG,
-                         pygame.Rect(0, 0, SCREEN_WIDTH, TOP_BAR_HEIGHT))
-        pygame.draw.line(screen, ACCENT_LINE,
-                         (0, TOP_BAR_HEIGHT - 1), (SCREEN_WIDTH, TOP_BAR_HEIGHT - 1))
-
-        # Left: GEN label + big number
-        lbl_gen = font_xs.render("GEN", True, TEXT_MUTED)
-        val_gen = font_lg.render(str(generation), True, TEXT_GEN)
-        screen.blit(lbl_gen, (22, 13))
-        screen.blit(val_gen, (22 + lbl_gen.get_width() + 5, 9))
-
-        # Centre: BEST FITNESS
-        lbl_fit = font_xs.render("BEST FITNESS", True, TEXT_MUTED)
-        val_fit = font_lg.render(f"{best_fitness:.0f}", True, TEXT_ACCENT)
-        mid = SCREEN_WIDTH // 2
-        screen.blit(lbl_fit, lbl_fit.get_rect(centerx=mid, top=10))
-        screen.blit(val_fit, val_fit.get_rect(centerx=mid, top=26))
-
-        # Right: TRACK
-        trk_display = track.name.replace("_", " ").title()
-        lbl_trk = font_xs.render("TRACK", True, TEXT_MUTED)
-        val_trk = font_sm.render(trk_display, True, TEXT_LIGHT)
-        screen.blit(lbl_trk, lbl_trk.get_rect(right=SCREEN_WIDTH - 20, top=13))
-        screen.blit(val_trk, val_trk.get_rect(right=SCREEN_WIDTH - 20, top=30))
-
-        # Thin checkpoint progress bar along the bottom of the top bar
-        _draw_progress_bar(screen, car, track)
-
-        # ── TRACK ───────────────────────────────────────────────
-        track.draw(screen, active_checkpoint=car.checkpoint_index)
-
-        # ── GRADIENT TRAIL ──────────────────────────────────────
-        if len(trail) >= 2:
-            trail_surf.fill((0, 0, 0, 0))
-            n = len(trail)
-            for j in range(1, n):
-                frac  = j / n
-                alpha = int(210 * frac)
-                width = 1 + int(2 * frac)
-                pygame.draw.line(
-                    trail_surf,
-                    (*TRAIL_COLOR, alpha),
-                    (int(trail[j - 1][0]), int(trail[j - 1][1])),
-                    (int(trail[j][0]),     int(trail[j][1])),
-                    width
-                )
-            screen.blit(trail_surf, (0, 0))
-
-        # ── RAYS + CAR ──────────────────────────────────────────
-        if car.alive:
-            car.draw_rays(screen, track)
-        car.draw(screen, BEST_CAR_COLOR)
-
-        # ── CHART ───────────────────────────────────────────────
-        _draw_chart(screen, best_history, font_xs)
-
-        # ── BOTTOM BAR ──────────────────────────────────────────
-        pygame.draw.rect(
-            screen, BOTTOM_BAR_BG,
-            pygame.Rect(0, SCREEN_HEIGHT - BOTTOM_BAR_HEIGHT,
-                        SCREEN_WIDTH, BOTTOM_BAR_HEIGHT)
-        )
-        pygame.draw.line(screen, ACCENT_LINE,
-                         (0, SCREEN_HEIGHT - BOTTOM_BAR_HEIGHT),
-                         (SCREEN_WIDTH, SCREEN_HEIGHT - BOTTOM_BAR_HEIGHT))
-        _draw_key_hints(screen, font_xs)
-
-        pygame.display.flip()
-
-        # ── END REPLAY ──────────────────────────────────────────
-        if step_index >= SIM_STEPS or not car.alive:
-            pygame.time.delay(300)
-            if auto_continue:
-                running = False
 
 
 # ============================================================

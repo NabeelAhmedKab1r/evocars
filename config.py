@@ -50,8 +50,7 @@ MUTATION_STD = 0.25
 TRACK_DIR = "tracks"
 SAVE_DIR = "saves"
 
-# ----- Replay / UI -----
-AUTO_REPLAY = True
+# ----- UI -----
 REPLAY_FPS = 60
 CHART_WIDTH  = 240
 CHART_HEIGHT = 100

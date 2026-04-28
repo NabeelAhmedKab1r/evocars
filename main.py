@@ -3,7 +3,7 @@
 import pygame
 import sys
 
-from config import SCREEN_WIDTH, SCREEN_HEIGHT, AUTO_REPLAY, TRACK_DIR
+from config import SCREEN_WIDTH, SCREEN_HEIGHT, TRACK_DIR
 from track import load_all_tracks
 from genome import random_genome
 from ga import next_generation
