@@ -1,32 +1,19 @@
-
 import random
-from config import MUTATION_RATE, MUTATION_STD
+from config import MUTATION_RATE, MUTATION_STD, GENOME_LEN
 
 
-def random_gene():
-    # steer, throttle in [-1, 1]
-    return (random.uniform(-1, 1), random.uniform(-1, 1))
-
-
-def random_genome(length):
-    return [random_gene() for _ in range(length)]
+def random_genome():
+    """Flat list of NN weights initialised in [-1, 1]."""
+    return [random.uniform(-1.0, 1.0) for _ in range(GENOME_LEN)]
 
 
 def mutate(genome):
     for i in range(len(genome)):
         if random.random() < MUTATION_RATE:
-            s, t = genome[i]
-            s += random.gauss(0, MUTATION_STD)
-            t += random.gauss(0, MUTATION_STD)
-            s = max(-1, min(1, s))
-            t = max(-1, min(1, t))
-            genome[i] = (s, t)
+            genome[i] += random.gauss(0, MUTATION_STD)
+            genome[i] = max(-5.0, min(5.0, genome[i]))
 
 
 def crossover(g1, g2):
-    # uniform crossover
-    assert len(g1) == len(g2)
-    child = []
-    for a, b in zip(g1, g2):
-        child.append(a if random.random() < 0.5 else b)
-    return child
+    """Uniform crossover over individual weights."""
+    return [a if random.random() < 0.5 else b for a, b in zip(g1, g2)]
