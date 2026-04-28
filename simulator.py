@@ -87,7 +87,7 @@ def simulate_genome(genome, track):
 # ============================================================
 GHOST_COLOR      = (0, 55, 80)    # dim cyan for non-best alive cars
 GHOST_COLOR_FAST = (0, 90, 120)   # slightly brighter when moving well
-STEPS_PER_FRAME  = 5              # sim steps rendered per display frame
+SIM_SPEED_MULT   = 3.0            # run sim at 3× real time (~33 sec/generation)
 
 
 def _dist_to_next_cp(car, track):
@@ -105,13 +105,8 @@ def _car_fitness(car, steps_alive, track):
 
 
 def _draw_ghost_car(surface, car):
-    ang  = car.angle
-    size = 7
-    p1 = (car.x + math.cos(ang) * size,             car.y + math.sin(ang) * size)
-    p2 = (car.x + math.cos(ang + 2.5) * size * 0.65, car.y + math.sin(ang + 2.5) * size * 0.65)
-    p3 = (car.x + math.cos(ang - 2.5) * size * 0.65, car.y + math.sin(ang - 2.5) * size * 0.65)
     color = GHOST_COLOR_FAST if car.speed > 3.0 else GHOST_COLOR
-    pygame.draw.polygon(surface, color, [p1, p2, p3])
+    pygame.draw.circle(surface, color, (int(car.x), int(car.y)), 2)
 
 
 def simulate_population_visual(screen, clock, track, population, generation, best_history):
@@ -127,10 +122,14 @@ def simulate_population_visual(screen, clock, track, population, generation, bes
     font_sm = pygame.font.SysFont("Helvetica", 13)
     font_xs = pygame.font.SysFont("Helvetica", 11)
 
-    step    = 0
-    skipped = False
+    step     = 0
+    time_acc = 0.0
+    skipped  = False
 
     while step < SIM_STEPS:
+        dt_real   = clock.tick(REPLAY_FPS) / 1000.0
+        time_acc += dt_real * SIM_SPEED_MULT
+
         # ── EVENTS ──────────────────────────────────────────────
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -147,7 +146,6 @@ def simulate_population_visual(screen, clock, track, population, generation, bes
                     skipped = True
 
         if skipped:
-            # Finish headlessly so fitness is still accurate
             while step < SIM_STEPS:
                 for i, car in enumerate(cars):
                     if car.alive:
@@ -158,10 +156,9 @@ def simulate_population_visual(screen, clock, track, population, generation, bes
                 step += 1
             break
 
-        # ── STEP SIM ────────────────────────────────────────────
-        for _ in range(STEPS_PER_FRAME):
-            if step >= SIM_STEPS:
-                break
+        # ── STEP SIM (time-based, capped to avoid spiral) ───────
+        steps_this_frame = 0
+        while time_acc >= DT and step < SIM_STEPS and steps_this_frame < 8:
             for i, car in enumerate(cars):
                 if car.alive:
                     rays = car.get_raycasts(track)
@@ -169,6 +166,8 @@ def simulate_population_visual(screen, clock, track, population, generation, bes
                     car.update(steer, throttle, track, DT)
                     steps_alive[i] += 1
             step += 1
+            time_acc -= DT
+            steps_this_frame += 1
 
         # ── FIND BEST LIVING CAR ────────────────────────────────
         alive_indices = [i for i, c in enumerate(cars) if c.alive]
