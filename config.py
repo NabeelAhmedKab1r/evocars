@@ -4,13 +4,13 @@
 SCREEN_WIDTH = 960
 SCREEN_HEIGHT = 540
 
-BACKGROUND_COLOR = (7, 8, 18)         # off-track void
-DRIVEABLE_COLOR  = (24, 26, 42)       # dark asphalt
-WALL_COLOR       = (50, 52, 78)       # kerb
-ROAD_EDGE_COLOR  = (90, 95, 140)      # road boundary line
-CHECKPOINT_COLOR = (35, 85, 200)      # inactive ring
-START_COLOR      = (0, 210, 110)
-CAR_COLOR        = (0, 200, 255)      # electric cyan
+BACKGROUND_COLOR = (195, 200, 215)    # off-track: cool light gray
+DRIVEABLE_COLOR  = (235, 238, 248)    # road surface: near-white
+WALL_COLOR       = (55, 58, 90)       # walls: dark slate
+ROAD_EDGE_COLOR  = (170, 175, 195)    # road boundary line
+CHECKPOINT_COLOR = (50, 100, 230)     # inactive ring
+START_COLOR      = (0, 190, 100)
+CAR_COLOR        = (0, 160, 230)      # electric blue
 
 CELL = 30
 

@@ -17,7 +17,7 @@ TRACK_MARGIN    = 70
 WALL_THICKNESS  = 22
 
 _DOT_SPACING = 28
-_DOT_COLOR   = (18, 20, 38)   # subtle grid dots in the off-road void
+_DOT_COLOR   = (165, 170, 188)  # subtle grid dots in the off-road void
 
 
 class Track:
@@ -51,7 +51,7 @@ class Track:
         pygame.draw.rect(surface, DRIVEABLE_COLOR, road_rect)
 
         # Subtle road border
-        pygame.draw.rect(surface, (55, 58, 90), road_rect, 1)
+        pygame.draw.rect(surface, (170, 175, 195), road_rect, 1)
 
         # ── WALLS ───────────────────────────────────────────────
         for w in self.walls:
@@ -85,12 +85,13 @@ class Track:
                 label_color = ring_color
 
             elif is_done:
-                pygame.draw.circle(surface, (45, 65, 55), (cx, cy), 9, 1)
-                label_color = (50, 80, 65)
+                pygame.draw.circle(surface, (150, 210, 175), (cx, cy), 9, 1)
+                label_color = (60, 140, 95)
 
             else:
-                pygame.draw.circle(surface, CHECKPOINT_COLOR, (cx, cy), 9, 2)
-                label_color = CHECKPOINT_COLOR
+                pygame.draw.circle(surface, (180, 190, 230), (cx, cy), 9)
+                pygame.draw.circle(surface, (60, 100, 220), (cx, cy), 9, 2)
+                label_color = (40, 80, 200)
 
             lbl = font.render(str(i + 1), True, label_color)
             surface.blit(lbl, lbl.get_rect(centerx=cx, bottom=cy - 14))

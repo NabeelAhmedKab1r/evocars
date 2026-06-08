@@ -2,6 +2,7 @@
 
 import math
 import pygame
+import pygame.gfxdraw
 from config import (
     DT, MAX_SPEED, ACCEL, FRICTION, TURN_RATE,
     CAR_WIDTH, CAR_LENGTH, SCREEN_WIDTH, SCREEN_HEIGHT, CAR_COLOR,
@@ -111,13 +112,14 @@ class Car:
             end_y = self.y + math.sin(angle) * dist
             hit   = dist < MAX_RAY_DIST - 1
 
-            line_color = (255, 130, 50, 35) if hit else (60, 190, 255, 18)
+            line_color = (200, 80, 10, 70) if hit else (20, 100, 190, 45)
             pygame.draw.line(overlay, line_color,
                              (int(self.x), int(self.y)),
                              (int(end_x), int(end_y)), 1)
             if hit:
-                pygame.draw.circle(overlay, (255, 150, 70, 160),
-                                   (int(end_x), int(end_y)), 2)
+                ex, ey = int(end_x), int(end_y)
+                pygame.gfxdraw.filled_circle(overlay, ex, ey, 2, (210, 90, 20, 200))
+                pygame.gfxdraw.aacircle(overlay, ex, ey, 2, (210, 90, 20, 200))
         surface.blit(overlay, (0, 0))
 
     def draw(self, surface, color=CAR_COLOR):
@@ -138,7 +140,11 @@ class Car:
             pygame.draw.circle(glow, (*color, a), (32, 32), r)
         surface.blit(glow, (ix - 32, iy - 32))
 
-        # Car body
-        pygame.draw.polygon(surface, color, [p1, p2, p3])
+        # Car body (anti-aliased)
+        pts = [(int(p[0]), int(p[1])) for p in [p1, p2, p3]]
+        pygame.gfxdraw.filled_polygon(surface, pts, color)
+        pygame.gfxdraw.aapolygon(surface, pts, color)
         # Bright highlight at the nose
-        pygame.draw.circle(surface, (220, 255, 255), (int(p1[0]), int(p1[1])), 2)
+        nx, ny = int(p1[0]), int(p1[1])
+        pygame.gfxdraw.filled_circle(surface, nx, ny, 2, (220, 255, 255))
+        pygame.gfxdraw.aacircle(surface, nx, ny, 2, (220, 255, 255))
